@@ -1,7 +1,7 @@
 const form = document.getElementById("signupForm");
 const messageBox = document.getElementById("message");
 
-const API_BASE = "http://localhost:8000/api/v1/user";
+const API_BASE = "https://gatherplay.onrender.com/api/v1/user";
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();

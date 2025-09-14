@@ -7,7 +7,7 @@ form.addEventListener("submit", async (e) => {
   const password = document.getElementById("password").value.trim();
 
   try {
-    const res = await fetch("http://localhost:8000/api/v1/user/login", {
+    const res = await fetch("https://gatherplay.onrender.com/api/v1/user/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
