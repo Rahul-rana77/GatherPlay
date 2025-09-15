@@ -1,0 +1,9 @@
+{
+  "rewrites": [
+    { "source": "/login", "destination": "/client/src/pages/login/login.html" },
+    { "source": "/", "destination": "/client/index.html" },
+    { "source": "/home", "destination": "/client/src/pages/home/home.html" },
+    { "source": "/create-room", "destination": "/client/src/pages/create-room/create.html" },
+    { "source": "/join-room", "destination": "/client/src/pages/join-room/join.html" }
+  ]
+}
