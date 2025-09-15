@@ -19,7 +19,7 @@ form.addEventListener("submit", async (e) => {
       alert("Login successful!");
       localStorage.setItem("token", data.token); // save JWT
       localStorage.setItem("email", data.user.email);
-      window.location.href = "../home/home.html"; // redirect to home
+      window.location.href = "/client/src/pages/home/home.html"; // redirect to home
     } else {
       alert(data.error || "Login failed");
     }

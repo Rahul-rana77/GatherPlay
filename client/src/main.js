@@ -28,7 +28,7 @@ form.addEventListener("submit", async (e) => {
       messageBox.textContent = "Registration successful! Redirecting...";
       messageBox.style.color = "#4ade80"; // green
       setTimeout(() => {
-        window.location.href = "./pages/home/home.html";
+        window.location.href = "/client/src/pages/home/home.html";
       }, 1500);
     }
   } catch (err) {
