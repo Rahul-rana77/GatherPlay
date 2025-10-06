@@ -20,8 +20,11 @@ export const getRoomById = async (req, res) => {
         name: room.name,
         description: room.description,
         isPrivate: room.isPrivate,
+        videoUrl: room.videoUrl,
         participants: room.participants.map((p) => p.username),
         createdBy: room.createdBy?.username || "Unknown",
+        createdAt: room.createdAt,
+        updatedAt: room.updatedAt,
       },
     });
   } catch (error) {

@@ -1,21 +1,27 @@
 import React, { useEffect } from 'react'
-import { useParams } from "react-router-dom";
+import { useLoaderData, useParams } from "react-router-dom";
 
 const Room = () => {
-  const [data, setData] = React.useState("");
-  const { roomId } = useParams();
-
-  const getData = async () => {
-    const response = await fetch(`https://gatherplay.onrender.com/api/v1/room/${roomId}`,{
-    method: "GET",
-    });
+  const params = useParams();
+  const id = params.roomId;
+  const roomDetails = useLoaderData();
+  console.log(roomDetails);
+  const getDetails = async () => {
+  try {
+    const response = await fetch(`https://gatherplay.onrender.com/api/v1/room/${id}`, {
+        method: "GET",
+        });
     const data = await response.json();
     console.log(data);
     return data;
-}
+  } catch (error) {
+    console.error("Error fetching room details:", error);
+    throw error;
+  }
+};
 
   useEffect(() => {
-    getData().then(fetchedData => setData(fetchedData));
+    getDetails()
   }, []);
   return (
 
@@ -24,7 +30,7 @@ const Room = () => {
       <p>This is where the room functionality will be implemented.</p>
        <div >
       <h1 >
-        Room: {data.roomId || "Loading..."}
+        Room: {params.roomId || "Loading..."}
       </h1>
       <p >Room:</p>
       <p ></p>
