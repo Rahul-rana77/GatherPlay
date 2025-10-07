@@ -3,12 +3,15 @@ import Room from "../models/room.model.js";
 // 🆕 Get Room by ID
 export const getRoomById = async (req, res) => {
   try {
-    const { roomId } = req.params;
+    const params = req.params;
+    const roomId = params.roomId;
+    console.log("🔍 Incoming request for roomId:", roomId);
 
     // Find room by roomId
     const room = await Room.findOne({ roomId }).populate("participants", "username email");
 
     if (!room) {
+      console.warn("⚠️ Room not found for roomId:", roomId);
       return res.status(404).json({ error: "Room not found" });
     }
 
