@@ -39,6 +39,6 @@ export const getRoomById = async (req, res) => {
     });
   } catch (error) {
     console.error("❌ Error fetching room:", error);
-    res.status(500).json({ error: "Server error while fetching room" });
+    res.status(500).json({ error: "Server error while fetching room", message: error.message });
   }
 };
