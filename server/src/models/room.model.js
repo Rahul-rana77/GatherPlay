@@ -17,7 +17,7 @@ const roomSchema = new mongoose.Schema({
         trim: true 
     },
     createdBy: { 
-        type: mongoose.Schema.Types.ObjectId, 
+        type: mongoose.Schema.Types.Mixed, 
         ref: "User"
     },
     participants: [{ 
