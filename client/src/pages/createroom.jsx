@@ -5,12 +5,12 @@ import { useNavigate } from 'react-router-dom';
 const Createroom = () => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [username, setUsername] = useState('');
+  const [isPrivate, setIsPrivate] = useState('false');
   const [roomPassword, setRoomPassword] = useState('');
   const navigate = useNavigate();
 
   const handleCreateRoom = async () => {
-    if(!name || !description || !username){
+    if(!name || !description || !isPrivate){
       alert("Please fill all the fields");
       return;
     }
@@ -21,12 +21,15 @@ const Createroom = () => {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ name, description, username, roomPassword})
+        body: JSON.stringify({ name, description, isPrivate, roomPassword})
       });
       const data = await res.json();
       if(res.status === 201){
         alert("Room created successfully");
-        navigate(`/room/${data.room.roomId}`, {state: {room: data.room, username}});
+        navigate(`/room/${data.room.roomId}`, {state: {room: data.room, name: data.name}} );
+      }
+      else{
+        alert(data.error || "Error creating room");
       }
     } catch (error) {
       console.error("Error creating room:", error);
@@ -39,7 +42,11 @@ const Createroom = () => {
       <div className="input-field">
         <input type="text" className="room-field" placeholder="Room Name" onChange={(e)=>setName(e.target.value)} required />
         <input type="text" className="room-field" placeholder="Description" onChange={(e)=>setDescription(e.target.value)} required />
-        <input type="text" className="user-field" placeholder="Username" onChange={(e)=>setUsername(e.target.value)} required />
+        <select className="room-field"value={isPrivate === "" ? "" : String(isPrivate)} onChange={(e)=>setIsPrivate(e.target.value)} required>
+          <option value="" disabled selected>Select Privacy</option>
+          <option value="true">Private</option>
+          <option value="false">Public</option>
+        </select>
         <input type="password" className="password-field" placeholder="Set Password (Optional)" onChange={(e)=>setRoomPassword(e.target.value)} />
       </div>
       <button onClick={handleCreateRoom}>Create Room</button>
