@@ -16,10 +16,10 @@ const roomSchema = new mongoose.Schema({
         type: String, 
         trim: true 
     },
-    createdBy: { 
+    createdBy: [{ 
         type: mongoose.Schema.Types.Mixed, 
         ref: "User"
-    },
+    }],
     participants: [{ 
         type: mongoose.Schema.Types.Mixed,
         ref: "User"

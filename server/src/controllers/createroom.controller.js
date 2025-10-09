@@ -25,7 +25,7 @@ const createRoom = async (req, res) => {
       description,
       isPrivate,
       roomPassword: hashedPassword,
-      createdBy: req.user?._id || null, // attach logged-in user if available
+      createdBy: req.user?.username || null, // attach logged-in user if available
       participants: req.user ? [req.user._id] : [],
     });
 
