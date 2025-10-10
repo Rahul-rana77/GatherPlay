@@ -25,7 +25,7 @@ const createRoom = async (req, res) => {
       description,
       isPrivate,
       roomPassword: hashedPassword,
-      createdBy: req.user._id, 
+      createdBy: req.user ? req.user._id : null, 
       participants: req.user ? [req.user._id] : [],
     });
 

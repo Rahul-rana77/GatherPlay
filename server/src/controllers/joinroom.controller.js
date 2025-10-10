@@ -4,7 +4,7 @@ import User from "../models/user.model.js";
 
 const joinRoom = async (req, res) => {
   try {
-    const { roomLink,username, roomPassword } = req.body;
+    const { roomLink, username, roomPassword } = req.body;
 
     if (!roomLink || !username) {
       return res.status(400).json({ error: "Room link and username are required" });

@@ -26,7 +26,7 @@ const Createroom = () => {
       const data = await res.json();
       if(res.status === 201){
         alert("Room created successfully");
-        navigate(`/room/${data.room.roomId}`, {state: {room: data.room, name: data.name}} );
+        navigate(`/room/${data.room.roomId}`, {state: {room: data.room}} );
       }
       else{
         alert(data.error || "Error creating room");
