@@ -1,99 +1,114 @@
-import { useState } from 'react';
-import React, { useEffect} from 'react'
-import { useParams,useNavigate } from "react-router-dom";
+import React, { useEffect, useRef, useState } from "react";
+import { useParams } from "react-router-dom";
+import io from "socket.io-client";
+import ReactPlayer from "react-player";
+
+const socket = io("https://gatherplay.onrender.com"); // your backend socket server
 
 const Room = () => {
-  const navigate = useNavigate();
-  const params = useParams();
-  const id = params.roomId;
-  const [room , setRoom] = useState("");
-  const getDetails = async () => {
-  try {
-    const response = await fetch(`https://gatherplay.onrender.com/api/v1/room/${id}`, {
-        method: "GET",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        });
-    const data = await response.json();
-    if (response.ok && data.success) {
-        setRoom(data.room);
-    } else {
-        console.error("Failed to fetch room details:", data.error);
-    }
-  } catch (error) {
-    console.error("Error fetching room details:", error);
-    throw error;
-  }
-};
+  const { roomId } = useParams();
+  const [videoUrl, setVideoUrl] = useState("");
+  const [currentUrl, setCurrentUrl] = useState("");
+  const [isPlaying, setIsPlaying] = useState(false);
+  const playerRef = useRef(null);
 
   useEffect(() => {
-    getDetails().then(() => {
-      console.log("Room details fetched successfully");
-    }).catch((error) => {
-      console.error("Error in getDetails:", error);
+    socket.emit("join_room", roomId);
+
+    socket.on("video_update", ({ videoUrl }) => {
+      setCurrentUrl(videoUrl);
     });
-  }, [getDetails]);
+
+    socket.on("video_control", ({ action, time }) => {
+      if (!playerRef.current) return;
+      const player = playerRef.current;
+
+      if (action === "play") player.seekTo(time, "seconds"), setIsPlaying(true);
+      if (action === "pause") player.seekTo(time, "seconds"), setIsPlaying(false);
+    });
+
+    return () => {
+      socket.off("video_update");
+      socket.off("video_control");
+    };
+  }, [roomId]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (videoUrl.trim()) {
+      setCurrentUrl(videoUrl);
+      socket.emit("video_update", { roomId, videoUrl });
+      setVideoUrl("");
+    }
+  };
+
+  const handlePlay = () => {
+    socket.emit("video_control", {
+      roomId,
+      action: "play",
+      time: playerRef.current.getCurrentTime(),
+    });
+    setIsPlaying(true);
+  };
+
+  const handlePause = () => {
+    socket.emit("video_control", {
+      roomId,
+      action: "pause",
+      time: playerRef.current.getCurrentTime(),
+    });
+    setIsPlaying(false);
+  };
+
   return (
+    <div className="room-container" style={{ padding: "20px", textAlign: "center" }}>
+      <h1>🎥 Room ID: {roomId}</h1>
 
-    <div>
-      <h1>Room Page</h1>
-      <p>This is where the room functionality will be implemented.</p>
-        <div >
-          <h1 >
-            Room Name: {room?.name || "Loading..."}
-          </h1>
-          <p >RoomID:{params.roomId}</p>
-          <p >{room?.description || "No description provided"}</p>
+      <form onSubmit={handleSubmit} style={{ marginBottom: "20px" }}>
+        <input
+          type="text"
+          placeholder="Enter video URL (YouTube, Vimeo, etc.)"
+          value={videoUrl}
+          onChange={(e) => setVideoUrl(e.target.value)}
+          style={{
+            padding: "10px",
+            width: "60%",
+            border: "1px solid #aaa",
+            borderRadius: "6px",
+          }}
+        />
+        <button
+          type="submit"
+          style={{
+            marginLeft: "10px",
+            padding: "10px 16px",
+            border: "none",
+            borderRadius: "6px",
+            background: "#007bff",
+            color: "#fff",
+            cursor: "pointer",
+          }}
+        >
+          Load
+        </button>
+      </form>
 
-          <div >
-            <p>
-              Welcome, <span></span> 👋
-            </p>
-          </div>
-
-          <div className="border-t border-gray-300 dark:border-gray-600 pt-4">
-          <h3 className="text-lg font-semibold mb-2">👥 Participants</h3>
-          {room.participants && room.participants.length > 0 ? (
-            <ul className="list-disc ml-6">
-              {room.participants.map((user, i) => (
-                <li key={i}>{user}</li>
-              ))}
-            </ul>
-          ) : (
-            <p>No participants yet.</p>
-          )}
+      {currentUrl && (
+        <div>
+          <ReactPlayer
+            ref={playerRef}
+            url={currentUrl}
+            controls
+            playing={isPlaying}
+            width="80%"
+            height="450px"
+            onPlay={handlePlay}
+            onPause={handlePause}
+          />
         </div>
-
-        <div className="text-center mt-6">
-          <button
-            onClick={() => navigate("/home")}
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-          >
-            Back to Home
-          </button>
-        </div>
-      {/* Video Section */}
-      <div className="mt-8">
-        <h2 className="text-2xl font-bold mb-4">🎬 Video Section</h2>
-        {room.videoUrl ? (
-          <div className="aspect-w-16 aspect-h-9">
-            <iframe
-              src={room.videoUrl}
-              title="Room Video"
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              className="w-full h-full"
-            ></iframe>
-          </div>
-        ) : (
-          <p>No video URL provided.</p>
-        )}
-      </div>
-        </div>
+      )}
     </div>
-  )
-}
+  );
+};
 
-export default Room
+export default Room;
