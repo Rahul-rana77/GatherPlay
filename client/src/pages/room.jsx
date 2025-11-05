@@ -1,114 +1,117 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
 import io from "socket.io-client";
-import ReactPlayer from "react-player";
 
-const socket = io("https://gatherplay.onrender.com"); // your backend socket server
+const socket = io("http://localhost:3000");
 
-const Room = () => {
-  const { roomId } = useParams();
-  const [videoUrl, setVideoUrl] = useState("");
-  const [currentUrl, setCurrentUrl] = useState("");
-  const [isPlaying, setIsPlaying] = useState(false);
-  const playerRef = useRef(null);
+export default function Room({ roomId }) {
+  const localVideo = useRef();
+  const [peers, setPeers] = useState({});
+  const localStream = useRef();
+
+  const peerConnections = useRef({});
 
   useEffect(() => {
-    socket.emit("join_room", roomId);
+    const start = async () => {
+      localStream.current = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true,
+      });
+      localVideo.current.srcObject = localStream.current;
 
-    socket.on("video_update", ({ videoUrl }) => {
-      setCurrentUrl(videoUrl);
-    });
+      socket.emit("join-room", roomId);
 
-    socket.on("video_control", ({ action, time }) => {
-      if (!playerRef.current) return;
-      const player = playerRef.current;
+      socket.on("user-joined", async (userId) => {
+        const pc = createPeerConnection(userId);
+        peerConnections.current[userId] = pc;
 
-      if (action === "play") player.seekTo(time, "seconds"), setIsPlaying(true);
-      if (action === "pause") player.seekTo(time, "seconds"), setIsPlaying(false);
-    });
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        socket.emit("offer", { roomId, offer, to: userId });
+      });
+
+      socket.on("offer", async ({ from, offer }) => {
+        const pc = createPeerConnection(from);
+        peerConnections.current[from] = pc;
+
+        await pc.setRemoteDescription(new RTCSessionDescription(offer));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        socket.emit("answer", { roomId, answer, to: from });
+      });
+
+      socket.on("answer", async ({ from, answer }) => {
+        const pc = peerConnections.current[from];
+        await pc.setRemoteDescription(new RTCSessionDescription(answer));
+      });
+
+      socket.on("ice-candidate", async ({ from, candidate }) => {
+        const pc = peerConnections.current[from];
+        if (candidate) await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      });
+
+      socket.on("user-left", (userId) => {
+        if (peerConnections.current[userId]) {
+          peerConnections.current[userId].close();
+          delete peerConnections.current[userId];
+          setPeers((prev) => {
+            const updated = { ...prev };
+            delete updated[userId];
+            return updated;
+          });
+        }
+      });
+    };
+
+    start();
 
     return () => {
-      socket.off("video_update");
-      socket.off("video_control");
+      socket.disconnect();
+      Object.values(peerConnections.current).forEach((pc) => pc.close());
     };
   }, [roomId]);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (videoUrl.trim()) {
-      setCurrentUrl(videoUrl);
-      socket.emit("video_update", { roomId, videoUrl });
-      setVideoUrl("");
-    }
-  };
-
-  const handlePlay = () => {
-    socket.emit("video_control", {
-      roomId,
-      action: "play",
-      time: playerRef.current.getCurrentTime(),
+  function createPeerConnection(userId) {
+    const pc = new RTCPeerConnection({
+      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
     });
-    setIsPlaying(true);
-  };
 
-  const handlePause = () => {
-    socket.emit("video_control", {
-      roomId,
-      action: "pause",
-      time: playerRef.current.getCurrentTime(),
+    localStream.current.getTracks().forEach((track) => {
+      pc.addTrack(track, localStream.current);
     });
-    setIsPlaying(false);
-  };
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate)
+        socket.emit("ice-candidate", {
+          to: userId,
+          candidate: event.candidate,
+        });
+    };
+
+    pc.ontrack = (event) => {
+      const [stream] = event.streams;
+      setPeers((prev) => ({ ...prev, [userId]: stream }));
+    };
+
+    return pc;
+  }
 
   return (
-    <div className="room-container" style={{ padding: "20px", textAlign: "center" }}>
-      <h1>🎥 Room ID: {roomId}</h1>
-
-      <form onSubmit={handleSubmit} style={{ marginBottom: "20px" }}>
-        <input
-          type="text"
-          placeholder="Enter video URL (YouTube, Vimeo, etc.)"
-          value={videoUrl}
-          onChange={(e) => setVideoUrl(e.target.value)}
-          style={{
-            padding: "10px",
-            width: "60%",
-            border: "1px solid #aaa",
-            borderRadius: "6px",
-          }}
-        />
-        <button
-          type="submit"
-          style={{
-            marginLeft: "10px",
-            padding: "10px 16px",
-            border: "none",
-            borderRadius: "6px",
-            background: "#007bff",
-            color: "#fff",
-            cursor: "pointer",
-          }}
-        >
-          Load
-        </button>
-      </form>
-
-      {currentUrl && (
-        <div>
-          <ReactPlayer
-            ref={playerRef}
-            url={currentUrl}
-            controls
-            playing={isPlaying}
-            width="80%"
-            height="450px"
-            onPlay={handlePlay}
-            onPause={handlePause}
+    <div className="flex flex-wrap gap-4 p-4">
+      <div>
+        <h2>You</h2>
+        <video ref={localVideo} autoPlay muted playsInline width="300" />
+      </div>
+      {Object.entries(peers).map(([id, stream]) => (
+        <div key={id}>
+          <h2>{id}</h2>
+          <video
+            autoPlay
+            playsInline
+            width="300"
+            ref={(el) => el && (el.srcObject = stream)}
           />
         </div>
-      )}
+      ))}
     </div>
   );
-};
-
-export default Room;
+}

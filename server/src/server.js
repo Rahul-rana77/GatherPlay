@@ -12,12 +12,17 @@ const PORT = process.env.PORT;
 const server = http.createServer(app)
 
 const io = new Server(server,{ 
+    pingTimeout: 60000,
         cors: { 
             origin: "*"
          } 
     });
 
 initVideoSocket(io);
+
+io.on("connection", (socket) => {
+  console.log("🟢 Socket connected:", socket.id);
+});
 
 connectDB().then(() => {
     server.listen(PORT, () => {
