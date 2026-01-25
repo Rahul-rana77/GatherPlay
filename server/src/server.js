@@ -21,7 +21,32 @@ const io = new Server(server,{
 initVideoSocket(io);
 
 io.on("connection", (socket) => {
-  console.log("🟢 Socket connected:", socket.id);
+  console.log("User connected:", socket.id);
+
+  socket.on("join-room", (roomId) => {
+    socket.join(roomId);
+    socket.to(roomId).emit("user-joined", socket.id);
+  });
+
+  socket.on("play", ({ roomId, time }) => {
+    socket.to(roomId).emit("play", time);
+  });
+
+  socket.on("pause", ({ roomId, time }) => {
+    socket.to(roomId).emit("pause", time);
+  });
+
+  socket.on("seek", ({ roomId, time }) => {
+    socket.to(roomId).emit("seek", time);
+  });
+
+  socket.on("video-change", ({ roomId, videoId }) => {
+    socket.to(roomId).emit("video-change", videoId);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("User disconnected:", socket.id);
+  });
 });
 
 connectDB().then(() => {

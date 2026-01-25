@@ -1,117 +1,75 @@
 import React, { useEffect, useRef, useState } from "react";
 import io from "socket.io-client";
+import ReactPlayer from "react-player";
 
 const socket = io("https://gatherplay.onrender.com");
 
 export default function Room({ roomId }) {
-  const localVideo = useRef();
-  const [peers, setPeers] = useState({});
-  const localStream = useRef();
-
-  const peerConnections = useRef({});
+  const playerRef = useRef(null);
+  const [videoUrl, setVideoUrl] = useState(
+    "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+  );
+  const [playing, setPlaying] = useState(false);
 
   useEffect(() => {
-    const start = async () => {
-      localStream.current = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true,
-      });
-      localVideo.current.srcObject = localStream.current;
+    socket.emit("join-room", roomId);
 
-      socket.emit("join-room", roomId);
+    socket.on("play", (time) => {
+      playerRef.current.seekTo(time, "seconds");
+      setPlaying(true);
+    });
 
-      socket.on("user-joined", async (userId) => {
-        const pc = createPeerConnection(userId);
-        peerConnections.current[userId] = pc;
+    socket.on("pause", (time) => {
+      playerRef.current.seekTo(time, "seconds");
+      setPlaying(false);
+    });
 
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        socket.emit("offer", { roomId, offer, to: userId });
-      });
+    socket.on("seek", (time) => {
+      playerRef.current.seekTo(time, "seconds");
+    });
 
-      socket.on("offer", async ({ from, offer }) => {
-        const pc = createPeerConnection(from);
-        peerConnections.current[from] = pc;
+    socket.on("video-change", (videoId) => {
+      setVideoUrl(`https://www.youtube.com/watch?v=${videoId}`);
+    });
 
-        await pc.setRemoteDescription(new RTCSessionDescription(offer));
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-        socket.emit("answer", { roomId, answer, to: from });
-      });
-
-      socket.on("answer", async ({ from, answer }) => {
-        const pc = peerConnections.current[from];
-        await pc.setRemoteDescription(new RTCSessionDescription(answer));
-      });
-
-      socket.on("ice-candidate", async ({ from, candidate }) => {
-        const pc = peerConnections.current[from];
-        if (candidate) await pc.addIceCandidate(new RTCIceCandidate(candidate));
-      });
-
-      socket.on("user-left", (userId) => {
-        if (peerConnections.current[userId]) {
-          peerConnections.current[userId].close();
-          delete peerConnections.current[userId];
-          setPeers((prev) => {
-            const updated = { ...prev };
-            delete updated[userId];
-            return updated;
-          });
-        }
-      });
-    };
-
-    start();
-
-    return () => {
-      socket.disconnect();
-      Object.values(peerConnections.current).forEach((pc) => pc.close());
-    };
+    return () => socket.removeAllListeners();
   }, [roomId]);
 
-  function createPeerConnection(userId) {
-    const pc = new RTCPeerConnection({
-      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-    });
+  const handlePlay = () => {
+    const time = playerRef.current.getCurrentTime();
+    socket.emit("play", { roomId, time });
+  };
 
-    localStream.current.getTracks().forEach((track) => {
-      pc.addTrack(track, localStream.current);
-    });
+  const handlePause = () => {
+    const time = playerRef.current.getCurrentTime();
+    socket.emit("pause", { roomId, time });
+  };
 
-    pc.onicecandidate = (event) => {
-      if (event.candidate)
-        socket.emit("ice-candidate", {
-          to: userId,
-          candidate: event.candidate,
-        });
-    };
+  const handleSeek = () => {
+    const time = playerRef.current.getCurrentTime();
+    socket.emit("seek", { roomId, time });
+  };
 
-    pc.ontrack = (event) => {
-      const [stream] = event.streams;
-      setPeers((prev) => ({ ...prev, [userId]: stream }));
-    };
-
-    return pc;
-  }
+  const changeVideo = () => {
+    const id = prompt("Enter YouTube Video ID:");
+    if (id) socket.emit("video-change", { roomId, videoId: id });
+  };
 
   return (
-    <div className="flex flex-wrap gap-4 p-4">
-      <div>
-        <h2>You</h2>
-        <video ref={localVideo} autoPlay muted playsInline width="300" />
-      </div>
-      {Object.entries(peers).map(([id, stream]) => (
-        <div key={id}>
-          <h2>{id}</h2>
-          <video
-            autoPlay
-            playsInline
-            width="300"
-            ref={(el) => el && (el.srcObject = stream)}
-          />
-        </div>
-      ))}
+    <div>
+      <h2>Room: {roomId}</h2>
+
+      <ReactPlayer
+        ref={playerRef}
+        url={videoUrl}
+        playing={playing}
+        controls
+        onPlay={handlePlay}
+        onPause={handlePause}
+        onProgress={handleSeek}
+      />
+
+      <button onClick={changeVideo}>Change Video</button>
     </div>
   );
 }
